@@ -33,29 +33,35 @@
 
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher, types
+import os
+
+from aiogram import Bot, Dispatcher
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import BaseFilter
-from aiogram.types import FSInputFile
+from aiogram.types import FSInputFile, Message
+from dotenv import load_dotenv
 
-# Токен вашего бота, который вы получили от BotFather. Не делитесь им с другими людьми, иначе они смогут управлять вашим ботом!!!
-TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-# Путь к файлу на вашем компьютере / сервере. измените его под себя. можете даже поставить что то кроме поезда 
-VIDEO_PATH = r"/home/davidhait/unzip/матершиник/video.mp4"
-
-BAD_WORDS = {
-    "блч", "блятб", "сукв", "двун", "еблвн", "зуй", "ебплн", "пидоор", "питуз", "петуз", "хуч", "писда", "еблае", "хуц", "долбаёь", "дольаёб", "уебоу", "друн", "дпун",
-    "пидоп", "назуй", "хун", "пижд", "заедал", "кретие", "дурау", "пиздч", "пиздеу", "уёбоу", "тупоц", "пиздв", "заебвл", "пидоо", "хуйдо", "пидопас", "бурка", "птдор",
-    "пижор", "олкх", "птдорас", "пидорвс", "птдорвс", "поезд", "поезда", "птзда", "пиздв", "пизла", "похкй", "грищенко", "нахкй", "пихда", "поездун"
-}
-# Грищенко - фамилия моей девушки. я добавил её в список в знак проявления любви. наверное. хотите, можете убрать         - //:DAVIDHAIT
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
+
+TOKEN = os.getenv("BOT_TOKEN", "")
+VIDEO_PATH = os.getenv("VIDEO_PATH", "video.mp4")
+
+if not TOKEN:
+    raise SystemExit("Ошибка: BOT_TOKEN не найден в .env файле")
+
+with open("words.txt", encoding="utf-8") as f:
+    BAD_WORDS = {line.strip() for line in f if line.strip()}
+
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 class ContainsBadWord(BaseFilter):
-    async def __call__(self, message: types.Message) -> bool:
+    cached_animation_id: str | None = None
+
+    async def __call__(self, message: Message) -> bool:
         if not message.text:
             return False
         
@@ -68,12 +74,22 @@ class ContainsBadWord(BaseFilter):
         return False
 
 @dp.message(ContainsBadWord())
-async def handle_bad_words(message: types.Message):
+async def handle_bad_words(message: Message):
     try:
-        video_file = FSInputFile(VIDEO_PATH)
-        await message.reply_animation(animation=video_file)
+        if ContainsBadWord.cached_animation_id:
+            await message.reply_animation(animation=ContainsBadWord.cached_animation_id)
+        else:
+            video_file = FSInputFile(VIDEO_PATH)
+            sent = await message.reply_animation(animation=video_file)
+            if sent.animation:
+                ContainsBadWord.cached_animation_id = sent.animation.file_id
+                logging.info(f"Анимация закеширована: {ContainsBadWord.cached_animation_id}")
+    except FileNotFoundError:
+        logging.error(f"Видео не найдено: {VIDEO_PATH}")
+    except TelegramAPIError as e:
+        logging.error(f"Ошибка Telegram API: {e}")
     except Exception as e:
-        logging.error(f"Ошибка при отправке гифки, сир проводник: {e}")
+        logging.exception(f"Неизвестная ошибка: {e}")
 
 async def main():
     print("Бот запущен, печка разогрета, котёл кипит...")
@@ -82,7 +98,7 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-# фрокинов иди нахуй
+# фрокинов иди нахуй 
 
 # — Епа, кнезу, Џенова и Лука сега не се ништо повеќе од имоти,
 # од поместија на фамилијата Бонапарта. Не, ви велам однапред,
