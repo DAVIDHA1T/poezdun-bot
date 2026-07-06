@@ -91,8 +91,18 @@ async def handle_bad_words(message: Message):
     except Exception as e:
         logging.exception(f"Неизвестная ошибка: {e}")
 
+sync def clear_pending_updates() -> None:
+    """Clear any updates that arrived before the bot started."""
+    while True:
+        updates = await bot.get_updates(timeout=0)
+        if not updates:
+            break
+        last_update_id = max(update.update_id for update in updates)
+        await bot.get_updates(offset=last_update_id + 1, timeout=0)
+
 async def main():
     print("Бот запущен, печка разогрета, котёл кипит...")
+    await clear_pending_updates()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
