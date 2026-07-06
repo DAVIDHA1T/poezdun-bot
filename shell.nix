@@ -1,15 +1,14 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
-  # Create a custom Python environment containing aiogram
   myPython = pkgs.python3.withPackages (ps: [
     ps.aiogram
+    ps.python-dotenv
   ]);
 in
 pkgs.mkShell {
   name = "aiogram-env";
   
-  # Put the custom Python environment into the shell packages
   packages = [
     myPython
   ];
